@@ -409,6 +409,21 @@ Define and document the exact structure layout and offsets for NASM and Python `
 
 Return `0` on success and a documented nonzero error code for invalid input. Define policy for zero iterations, null pointers, zero-length buffers, and output length limits before implementing the entry point.
 
+Layout (`include/pbkdf2.inc`): `password` at offset 0, `password_len` 8, `salt` 16, `salt_len` 24, `iterations` 32 (a 32-bit field followed by 4 ignored padding bytes), `output_len` 40; 48 bytes in total.
+
+Input policy. Checks run in this order and the first failure is returned; on any error, `output` is not written:
+
+| Condition | Result |
+|---|---|
+| `params` or `output` is NULL | `PBKDF2_ERR_NULL` (1) |
+| `password` or `salt` is NULL with a nonzero length | `PBKDF2_ERR_NULL` (1) |
+| `password` or `salt` is empty (NULL or not) | allowed |
+| `iterations` is 0 | `PBKDF2_ERR_ITERATIONS` (2) |
+| `output_len` is 0, or over (2^32 − 1) × 32 (RFC 8018's limit) | `PBKDF2_ERR_OUTPUT_LEN` (3) |
+| otherwise | `PBKDF2_OK` (0) |
+
+Pointer checks only catch NULL; a dangling pointer or an output buffer shorter than `output_len` cannot be detected. Only this entry point validates its inputs: the SHA-256 and HMAC functions are internal building blocks that trust their callers.
+
 ### 5.2 Command-line executable
 
 `build/pbkdf2` is a thin NASM wrapper around `pbkdf2_hmac_sha256`. It performs no cryptographic work of its own.
