@@ -3,6 +3,10 @@
 An educational, from-scratch implementation of PBKDF2-HMAC-SHA-256 in x86-64
 NASM assembly for Linux. Not for protecting real passwords.
 
+The code favors readability over speed: it is a plain, commented
+implementation for learning the internals, not an optimized one, and it
+makes no constant-time guarantees.
+
 It builds two artifacts from the same assembly code:
 
 - `build/pbkdf2`: a standalone executable, statically linked, no libc.
@@ -108,7 +112,8 @@ time (printf passwd | scripts/openssl-pbkdf2.sh -i 600000 -l 32 -s 73616c74)
 Differences: the wrapper has no CLI buffer limits, and `openssl kdf`
 accepts the password only as a command-line argument (hex-encoded), so it
 is briefly visible in `ps`. Use it for testing, never with a real password.
-OpenSSL is not installed in the build image.
+The script is meant for the host, where desktop Linux usually has
+OpenSSL; the build image deliberately does not install it.
 
 ## Layout
 
@@ -147,3 +152,23 @@ pbkdf2-asm/
   define constants with `%assign`/`%define` (preprocessor only, no symbols)
   and update the naming rule in `scripts/lint.py`. Stripping at link time is
   not an option: `ld -x` also drops the local labels GDB relies on.
+- **Bounds and integer-arithmetic review (Milestone 6).** One pass over
+  every place a length or offset is computed, checking for overflow,
+  off-by-one and out-of-bounds access, and adding a test for each
+  documented limit where practical:
+  - SHA-256: the 64-bit byte counter (documented limit 2^61 bytes, so the
+    bit length fits), the buffered-byte count `length & 63`, and the
+    padding offsets in `sha256_final`.
+  - HMAC: the key-length branch (over 64 bytes the key is hashed).
+  - PBKDF2: the 32-bit block counter and the `output_len` bound that keeps
+    it from wrapping, and the `min(32, bytes left)` copy of each block.
+  - CLI: `parse_decimal` overflow checks, `hex_decode` length and odd-digit
+    arithmetic, `read_all`/`write_all` offsets, and the buffer sizes in
+    `include/cli.inc`.
+- **Leftover key material (Milestone 6).** Contexts, the SHA-256 message
+  schedule, the HMAC key block, PBKDF2's stack frame and the CLI buffers
+  are already zeroed. Still to check: secret data left in registers or on
+  the stack after each function returns (for example, `sha256_compress`
+  leaves state words in r8-r11, and the stack below `rsp` keeps old
+  callee frames), and decide what is worth clearing while keeping the
+  code simple.

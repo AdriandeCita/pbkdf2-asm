@@ -94,7 +94,6 @@ pbkdf2-asm/
 │
 ├── scripts/
 │   ├── lint.py
-│   ├── benchmark.py
 │   └── openssl-pbkdf2.sh
 │
 └── build/
@@ -109,7 +108,7 @@ Responsibilities:
 - `src/cli`: the standalone executable's entry point (`_start`), argument parsing, stdin reading, hex encoding/decoding, and error reporting. Linked only into `build/pbkdf2`, never into the shared library.
 - `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `hmac.inc` does the same for `hmac_sha256_ctx` (an inner and an outer `sha256_ctx`). `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI, and `cli.inc` the CLI's exit statuses and size limits.
 - `tests`: independent tests for each primitive, plus end-to-end tests of the executable.
-- `scripts`: lightweight source checks, later benchmarking, and `openssl-pbkdf2.sh`, a wrapper with the executable's interface that computes the key with `openssl kdf`, for side-by-side comparison (developer tool only; it passes the password to OpenSSL as an argument).
+- `scripts`: lightweight source checks and `openssl-pbkdf2.sh`, a wrapper with the executable's interface that computes the key with `openssl kdf`, for side-by-side comparison (developer tool only; it passes the password to OpenSSL as an argument).
 - `build`: generated object files, the shared library, and the executable; never commit generated artifacts.
 
 Keep the modules independent. SHA-256 must not know about HMAC, HMAC must not know about PBKDF2, and none of the cryptographic modules may know about the CLI. The CLI uses only the public `pbkdf2_hmac_sha256` entry point and must not call internal SHA-256 or HMAC routines. Cryptographic modules must not make system calls.
@@ -638,7 +637,7 @@ Other tools available in the image:
 Valgrind and LLVM are not included:
 
 - **Valgrind** adds little here. Under `ctypes`, Python's own allocator hides most small heap overruns, Python itself produces a lot of noise, and Valgrind cannot detect overruns of stack buffers. The guard-page tests in §6 catch the likely bugs more directly.
-- **LLVM** is not used by NASM. Its only use would be `llvm-mca` for throughput analysis during optimization (Milestone 6). Add it to the image then if needed.
+- **LLVM** is not used by NASM. Its only use would be `llvm-mca` for throughput analysis, and optimization is out of scope (Milestone 6).
 
 None of these tools prove constant-time behavior or cryptographic security. Treat them as debugging and performance aids.
 
@@ -792,14 +791,13 @@ Start only after Milestone 4 passes, so CLI bugs cannot hide cryptographic bugs.
 
 Verify with `tests/test_cli.py` against `hashlib.pbkdf2_hmac`, and confirm the executable is static with no program interpreter (§7).
 
-### Milestone 6 — Hardening and optimization
+### Milestone 6 — Hardening
 
 - Expand boundary and randomized tests.
 - Review buffer bounds and integer arithmetic.
-- Review constant-time behavior, especially secret-dependent branches and memory accesses.
 - Clear temporary key material where appropriate.
-- Benchmark before optimizing.
-- Inspect generated machine code and test after every optimization.
+
+Out of scope: performance optimization and constant-time review. The code is written to be read and understood, and the course does not require either, so it stays straightforward: no unrolling, no SHA CPU extensions, no special-cased fast paths, and no benchmark harness (`scripts/openssl-pbkdf2.sh` allows an informal speed comparison). As a consequence the implementation makes no constant-time guarantees (for example, the CLI's hex encoder indexes a table with bytes of the derived key), which is another reason it must not protect real passwords.
 
 ## 12. References
 
@@ -819,14 +817,14 @@ Verify with `tests/test_cli.py` against `hashlib.pbkdf2_hmac`, and confirm the e
 ## Acceptance checklist for the initial scaffold
 
 - [x] Repository structure exists.
-- [ ] Docker image builds successfully.
-- [ ] `make` uses Docker by default.
-- [ ] `make test` runs pytest inside Docker.
-- [ ] `make lint` runs source checks inside Docker.
+- [x] Docker image builds successfully.
+- [x] `make` uses Docker by default.
+- [x] `make test` runs pytest inside Docker.
+- [x] `make lint` runs source checks inside Docker.
 - [x] `make clean` removes generated artifacts.
 - [x] `make BUILD_MODE=host` builds without Docker.
 - [x] `make` and `make test` work inside the devcontainer without Docker.
-- [ ] Build artifacts are visible in the host working tree.
+- [x] Build artifacts are visible in the host working tree.
 - [x] A trivial NASM ELF64 function can be assembled, linked, and loaded from Python.
 - [x] A minimal `build/pbkdf2` links statically without libc and exits 0 when run on the host.
 - [x] No cryptographic implementation has been added before the scaffold is verified.

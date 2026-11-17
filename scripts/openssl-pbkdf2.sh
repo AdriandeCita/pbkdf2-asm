@@ -14,7 +14,8 @@
 # - `openssl kdf` takes the password only as an argument, so it is visible
 #   in `ps` while this runs. Do not use it with a real password.
 #
-# Needs OpenSSL 3.0 or later (`openssl kdf`). Not part of the shipped
+# Needs OpenSSL 3.0 or later (`openssl kdf`), usually present on desktop
+# Linux; meant for the host, not the build image. Not part of the shipped
 # project: a developer tool, like scripts/lint.py.
 
 set -euo pipefail

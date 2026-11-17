@@ -13,7 +13,7 @@ Hard rules from the spec:
 
 ## Current state
 
-Milestone 1 (scaffold) is done and verified in host mode; Docker mode is untested because there is no Docker in the devcontainer. Milestones 2–5 (SHA-256, HMAC, PBKDF2, CLI) are implemented and tested (`tests/test_sha256.py`, `test_hmac.py`, `test_pbkdf2.py`, `test_cli.py`). Next is Milestone 6 (hardening and optimization, spec §11). Known cosmetic issue logged in README's TODO: `equ` constants appear as absolute symbols that mislabel `objdump` output.
+Milestone 1 (scaffold) is done and its acceptance checklist is complete: host mode verified in the devcontainer, Docker mode (`make && make test && make lint` with the default `BUILD_MODE`) verified by the user on a host with Docker. Milestones 2–5 (SHA-256, HMAC, PBKDF2, CLI) are implemented and tested (`tests/test_sha256.py`, `test_hmac.py`, `test_pbkdf2.py`, `test_cli.py`). Milestone 6 (hardening, spec §11) is not started and is on hold: its two remaining items (bounds/integer-arithmetic review, leftover key material) are written up as checklists in README's TODO section. Performance optimization and constant-time review are explicitly out of scope (user decision): keep the code plain and readable; don't propose unrolling, SHA-NI, fast paths or benchmarks. Known cosmetic issue logged in README's TODO: `equ` constants appear as absolute symbols that mislabel `objdump` output.
 
 The spec embeds the Makefile and `tests/conftest.py` verbatim — when changing either, update the copy in spec §4.3 / §6.1 too.
 
