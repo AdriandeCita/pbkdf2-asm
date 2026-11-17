@@ -3,15 +3,11 @@
 import ctypes
 import hashlib
 import random
-import re
 
 import pytest
 
-from conftest import ROOT
-from guard import GuardedAllocator, read
-
-BLOCK = 64
-DIGEST = 32
+from bindings import SHA256_BLOCK as BLOCK, SHA256_DIGEST as DIGEST, Sha256Ctx, addr, bind, inc_constants
+from guard import guard, read  # noqa: F401 (guard is a fixture)
 
 # H(0) from FIPS 180-4 section 5.3.3.
 H0 = (
@@ -36,40 +32,9 @@ KNOWN_ANSWERS = [
 ]
 
 
-class Sha256Ctx(ctypes.Structure):
-    """Mirror of struct sha256_ctx in include/sha256.inc."""
-
-    _fields_ = [
-        ("state", ctypes.c_uint32 * 8),
-        ("length", ctypes.c_uint64),
-        ("buffer", ctypes.c_uint8 * BLOCK),
-    ]
-
-
 @pytest.fixture(scope="module")
 def lib(library):
-    vp, sz = ctypes.c_void_p, ctypes.c_size_t
-    for name, args in [
-        ("sha256_compress", [vp, vp]),
-        ("sha256_init", [vp]),
-        ("sha256_update", [vp, vp, sz]),
-        ("sha256_final", [vp, vp]),
-    ]:
-        fn = getattr(library, name)
-        fn.argtypes = args
-        fn.restype = None
-    return library
-
-
-@pytest.fixture
-def guard():
-    allocator = GuardedAllocator()
-    yield allocator
-    allocator.close()
-
-
-def addr(obj):
-    return ctypes.addressof(obj)
+    return bind(library)
 
 
 def digest(lib, chunks):
@@ -83,8 +48,7 @@ def digest(lib, chunks):
 
 
 def test_ctx_layout_matches_include():
-    text = (ROOT / "include" / "sha256.inc").read_text()
-    consts = {m[1]: int(m[2]) for m in re.finditer(r"^(SHA256_\w+)\s+equ\s+(\d+)", text, re.M)}
+    consts = inc_constants("sha256.inc")
     assert Sha256Ctx.state.offset == consts["SHA256_CTX_STATE"]
     assert Sha256Ctx.length.offset == consts["SHA256_CTX_LENGTH"]
     assert Sha256Ctx.buffer.offset == consts["SHA256_CTX_BUFFER"]

@@ -9,6 +9,8 @@ pytest's faulthandler then prints the Python stack of the test that did it.
 import ctypes
 import mmap
 
+import pytest
+
 PAGE = mmap.PAGESIZE
 PROT_NONE = 0
 
@@ -72,3 +74,11 @@ class GuardedAllocator:
 
 def read(addr, size):
     return ctypes.string_at(addr, size)
+
+
+@pytest.fixture
+def guard():
+    """A GuardedAllocator freed after the test. Import it into a test module."""
+    allocator = GuardedAllocator()
+    yield allocator
+    allocator.close()

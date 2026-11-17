@@ -61,3 +61,14 @@ pbkdf2-asm/
 ├── Makefile
 └── pytest.ini
 ```
+
+## TODO
+
+- **Constants leak into the symbol table.** NASM emits every `equ` constant
+  as an absolute symbol (`nm` type `a`, e.g. `SCHEDULE_SIZE`,
+  `SHA256_CTX_SIZE`). They stay out of the exported symbols (`nm -D`), but
+  `objdump` uses them to label nearby addresses, so `make disasm` shows
+  misleading targets such as `jmp 1000 <SCHEDULE_SIZE+0xf00>`. Candidate fix:
+  define constants with `%assign`/`%define` (preprocessor only, no symbols)
+  and update the naming rule in `scripts/lint.py`. Stripping at link time is
+  not an option: `ld -x` also drops the local labels GDB relies on.

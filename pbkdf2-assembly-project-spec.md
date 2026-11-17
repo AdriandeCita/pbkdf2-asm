@@ -76,12 +76,14 @@ pbkdf2-asm/
 │       └── cli.asm
 │
 ├── include/
+│   ├── hmac.inc
 │   ├── pbkdf2.inc
 │   ├── sha256.inc
 │   └── syscalls.inc
 │
 ├── tests/
 │   ├── conftest.py
+│   ├── bindings.py
 │   ├── guard.py
 │   ├── test_build.py
 │   ├── test_sha256.py
@@ -103,7 +105,7 @@ Responsibilities:
 - `src/hmac`: HMAC-SHA-256 built on the SHA-256 module.
 - `src/pbkdf2`: PBKDF2 built on HMAC.
 - `src/cli`: the standalone executable's entry point (`_start`), argument parsing, stdin reading, hex encoding/decoding, and error reporting. Linked only into `build/pbkdf2`, never into the shared library.
-- `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI.
+- `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `hmac.inc` does the same for `hmac_sha256_ctx` (an inner and an outer `sha256_ctx`). `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI.
 - `tests`: independent tests for each primitive, plus end-to-end tests of the executable.
 - `scripts`: lightweight source checks and later benchmarking.
 - `build`: generated object files, the shared library, and the executable; never commit generated artifacts.
@@ -457,7 +459,7 @@ Python's standard library provides:
 - `hmac`
 - `hashlib.pbkdf2_hmac`
 
-Load the assembly shared library using `ctypes`. The wrapper should only marshal arguments and results; it must not perform cryptographic work itself.
+Load the assembly shared library using `ctypes`. The wrapper should only marshal arguments and results; it must not perform cryptographic work itself. `tests/bindings.py` holds the `ctypes` structures and function signatures shared by the test modules.
 
 Suggested test progression:
 
