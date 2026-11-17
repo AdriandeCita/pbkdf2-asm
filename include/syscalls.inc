@@ -18,4 +18,8 @@ STDIN_FD    equ 0
 STDOUT_FD   equ 1
 STDERR_FD   equ 2
 
+; errno values (include/uapi/asm-generic/errno-base.h), returned negated.
+EINTR       equ 4               ; interrupted by a signal: retry
+EIO         equ 5               ; used for a write that makes no progress
+
 %endif

@@ -76,6 +76,7 @@ pbkdf2-asm/
 │       └── cli.asm
 │
 ├── include/
+│   ├── cli.inc
 │   ├── hmac.inc
 │   ├── pbkdf2.inc
 │   ├── sha256.inc
@@ -93,7 +94,8 @@ pbkdf2-asm/
 │
 ├── scripts/
 │   ├── lint.py
-│   └── benchmark.py
+│   ├── benchmark.py
+│   └── openssl-pbkdf2.sh
 │
 └── build/
     └── .gitkeep
@@ -105,9 +107,9 @@ Responsibilities:
 - `src/hmac`: HMAC-SHA-256 built on the SHA-256 module.
 - `src/pbkdf2`: PBKDF2 built on HMAC.
 - `src/cli`: the standalone executable's entry point (`_start`), argument parsing, stdin reading, hex encoding/decoding, and error reporting. Linked only into `build/pbkdf2`, never into the shared library.
-- `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `hmac.inc` does the same for `hmac_sha256_ctx` (an inner and an outer `sha256_ctx`). `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI.
+- `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `hmac.inc` does the same for `hmac_sha256_ctx` (an inner and an outer `sha256_ctx`). `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI, and `cli.inc` the CLI's exit statuses and size limits.
 - `tests`: independent tests for each primitive, plus end-to-end tests of the executable.
-- `scripts`: lightweight source checks and later benchmarking.
+- `scripts`: lightweight source checks, later benchmarking, and `openssl-pbkdf2.sh`, a wrapper with the executable's interface that computes the key with `openssl kdf`, for side-by-side comparison (developer tool only; it passes the password to OpenSSL as an argument).
 - `build`: generated object files, the shared library, and the executable; never commit generated artifacts.
 
 Keep the modules independent. SHA-256 must not know about HMAC, HMAC must not know about PBKDF2, and none of the cryptographic modules may know about the CLI. The CLI uses only the public `pbkdf2_hmac_sha256` entry point and must not call internal SHA-256 or HMAC routines. Cryptographic modules must not make system calls.
@@ -461,7 +463,8 @@ Implementation constraints:
 - At `_start`, RSP is 16-byte aligned. Keep it 16-byte aligned at every `call`, including the call into `pbkdf2_hmac_sha256`.
 - Use raw `syscall` instructions for `read`, `write`, and `exit` (and nothing else unless needed). Define system call numbers in `include/syscalls.inc`; do not hard-code them. A negative return value in RAX means an error (`-errno`).
 - Handle short reads and short writes, and retry on `EINTR`.
-- Use fixed-size buffers in `.bss` instead of dynamic allocation. Define the maximum password, salt, and output lengths as named constants and reject larger input with exit status 2. Never write past a buffer.
+- Use fixed-size buffers in `.bss` instead of dynamic allocation. Define the maximum password, salt, and output lengths as named constants and reject larger input with exit status 2. Never write past a buffer. The limits live in `include/cli.inc`: 4096 password bytes, 1024 salt bytes (2048 hex digits), and 1024 output bytes.
+- Check all arguments before reading stdin, so a usage error never consumes the password.
 - Clear the password and derived-key buffers before exiting.
 
 ## 6. Testing strategy

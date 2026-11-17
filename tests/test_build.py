@@ -76,8 +76,11 @@ def test_executable_is_static_without_interpreter():
     assert PT_DYNAMIC not in types
 
 
-def test_executable_exits_successfully(cli):
-    result = subprocess.run([cli], stdin=subprocess.DEVNULL, capture_output=True)
+def test_executable_runs(cli):
+    # Full behavior is in test_cli.py; this only checks the binary starts
+    # and exits cleanly on its own (no loader, no libc).
+    result = subprocess.run(
+        [cli, "-i", "1", "-l", "1", "-s", ""], input=b"", capture_output=True
+    )
     assert result.returncode == 0
-    assert result.stdout == b""
     assert result.stderr == b""
