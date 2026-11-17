@@ -67,8 +67,7 @@ pbkdf2-asm/
 │
 ├── src/
 │   ├── sha256/
-│   │   ├── sha256.asm
-│   │   └── constants.inc
+│   │   └── sha256.asm
 │   ├── hmac/
 │   │   └── hmac.asm
 │   ├── pbkdf2/
@@ -78,10 +77,12 @@ pbkdf2-asm/
 │
 ├── include/
 │   ├── pbkdf2.inc
+│   ├── sha256.inc
 │   └── syscalls.inc
 │
 ├── tests/
 │   ├── conftest.py
+│   ├── guard.py
 │   ├── test_build.py
 │   ├── test_sha256.py
 │   ├── test_hmac.py
@@ -98,11 +99,11 @@ pbkdf2-asm/
 
 Responsibilities:
 
-- `src/sha256`: SHA-256 compression and complete hash operation.
+- `src/sha256`: SHA-256 compression and complete hash operation. The round constants (K) and initial hash values (H0) are `.rodata` tables in `sha256.asm` itself, since no other module uses them.
 - `src/hmac`: HMAC-SHA-256 built on the SHA-256 module.
 - `src/pbkdf2`: PBKDF2 built on HMAC.
 - `src/cli`: the standalone executable's entry point (`_start`), argument parsing, stdin reading, hex encoding/decoding, and error reporting. Linked only into `build/pbkdf2`, never into the shared library.
-- `include`: shared interface definitions and assembly declarations. `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI.
+- `include`: shared interface definitions and assembly declarations. `sha256.inc` holds the SHA-256 sizes and the layout of the caller-allocated `sha256_ctx` used by the streaming `sha256_init`/`sha256_update`/`sha256_final` functions. `syscalls.inc` holds the Linux x86-64 system call numbers and constants used by the CLI.
 - `tests`: independent tests for each primitive, plus end-to-end tests of the executable.
 - `scripts`: lightweight source checks and later benchmarking.
 - `build`: generated object files, the shared library, and the executable; never commit generated artifacts.
@@ -485,7 +486,7 @@ For the CLI, additionally include:
 
 Test each primitive independently before testing the next layer. This makes failures much easier to localize.
 
-To catch out-of-bounds reads and writes in the `ctypes` tests, place input and output buffers so that they end right before an inaccessible guard page: `mmap` two pages, `mprotect` the second one to `PROT_NONE`, and put the buffer at the end of the first page. A one-byte overrun then crashes the test at once. Use this for boundary-length tests of every primitive.
+To catch out-of-bounds reads and writes in the `ctypes` tests, place input and output buffers so that they end right before an inaccessible guard page: `mmap` two pages, `mprotect` the second one to `PROT_NONE`, and put the buffer at the end of the first page. A one-byte overrun then crashes the test at once. Use this for boundary-length tests of every primitive. `tests/guard.py` implements this, with a guard page on both sides so a buffer can also be placed at the start of its page to catch underruns.
 
 ### 6.1 pytest configuration
 
